@@ -8,7 +8,7 @@ advance_day=25;
 
 bibadate() {
 #определяет, является день выходным или рабочим
-if [ $(date -d "$1" +%u) -eq '6' ] || [ $(date -d "$1" +%u) -eq '7' ]; then  
+if [[ $(date -d "$1" +%u) -eq '6' || $(date -d "$1" +%u) -eq '7' ]]; then  
 	echo 'dont'
 else
 	echo 'do'
@@ -19,11 +19,11 @@ lastday (){
 #возвращает последний день месяца для переданной даты	
 	start=$1;
 	finish=$start;
-	while [[ $(date -d $start +%m) -eq $(date -d $finish +%m) ]]; do
+	while [[ $(date -d "$start" +%m) -eq $(date -d "$finish" +%m) ]]; do
 		finish=$(date +%Y%m%d -d "$finish + 1 day");
 	done
 	finish=$(date +%-d -d "$finish - 1 day");
-	echo $finish;
+	echo "$finish";
 }
 
 workdays() {
@@ -31,33 +31,42 @@ workdays() {
 finish=$1
 start=$(date +%Y%m01 -d "$finish");
 count=0; 
-while [[ $(date -d $start +%-d) -le $(date -d $finish +%-d) ]] && [[ $(date -d $start +%m) -eq $(date -d $finish +%m) ]]; do
-	if [ "$(bibadate $start)" = "do" ]; then
+while [[ $(date -d "$start" +%-d) -le $(date -d "$finish" +%-d) && $(date -d "$start" +%m) -eq $(date -d "$finish" +%m) ]]; do
+	if [[ "$(bibadate "$start")" = "do" ]]; then
 		count=$((count+1));
 	fi
 	start=$(date +%Y%m%d -d "$start + 1 day")
 done
-echo $count;
+echo $((count));
 }
 
 #Вычитаем НДФЛ ;(
-salary=$(echo "$gross_salary-$gross_salary*$tax" | bc);
+full_salary=$(echo "$gross_salary-$gross_salary*$tax" | bc);
 premium=$(echo "$gross_premium-$gross_premium*$tax" | bc);
 
 calculate_advance() {
 #возвращает размер аванса
-perday=$(echo "$salary / $(workdays $(date +%Y%m$(lastday $1) -d $1))" | bc);
-echo $perday;
+perday="$(echo "$full_salary" / "$(workdays "$(date -d "$1" +%Y%m"$(lastday "$1")" -d "$1")")" | bc)";
+advance=$(echo "$perday * $(workdays "$(date -d "$1" +%Y%m15)")" | bc);
+export advance="$advance";
 }
 
 calculate_salary() {
-#считает зарплату	
-echo ;
+if [[ "$(date -d "$1" +%-d)" -le $salary_day ]]; then
+	echo "ЗП за прошлый месяц";
+else
+	echo "$premium + $full_salary - $advance" | bc;
+fi
 }
 
-if [[ "$(date -d "$1" +%-d)" -gt $salary_day ]] && [[ "$(date -d "$1" +%-d)" -le $advance_day ]]; then
-	calculate_advance $1;
+if [[ -z ${1+x} ]]; then
+	day=$(date +%Y%m%d);
 else
-	echo 2; 
-	# calculate_advance $1;
+	day=$1;
+fi
+
+if [[ "$(date -d "$day" +%-d)" -gt "$salary_day" ]] && [[ "$(date -d "$day" +%-d)" -le "$advance_day" ]]; then
+	calculate_advance "$day";
+else
+	calculate_salary "$day";
 fi
