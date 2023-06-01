@@ -1,0 +1,63 @@
+#!/bin/bash
+
+gross_salary=48000;
+gross_premium=12000;
+tax=0.13;
+salary_day=10;
+advance_day=25;
+
+bibadate() {
+#определяет, является день выходным или рабочим
+if [ $(date -d "$1" +%u) -eq '6' ] || [ $(date -d "$1" +%u) -eq '7' ]; then  
+	echo 'dont'
+else
+	echo 'do'
+fi
+}
+
+lastday (){
+#возвращает последний день месяца для переданной даты	
+	start=$1;
+	finish=$start;
+	while [[ $(date -d $start +%m) -eq $(date -d $finish +%m) ]]; do
+		finish=$(date +%Y%m%d -d "$finish + 1 day");
+	done
+	finish=$(date +%-d -d "$finish - 1 day");
+	echo $finish;
+}
+
+workdays() {
+#возвращает количество рабочих дней с 1 числа месяца до указанной даты того же месяца
+finish=$1
+start=$(date +%Y%m01 -d "$finish");
+count=0; 
+while [[ $(date -d $start +%-d) -le $(date -d $finish +%-d) ]] && [[ $(date -d $start +%m) -eq $(date -d $finish +%m) ]]; do
+	if [ "$(bibadate $start)" = "do" ]; then
+		count=$((count+1));
+	fi
+	start=$(date +%Y%m%d -d "$start + 1 day")
+done
+echo $count;
+}
+
+#Вычитаем НДФЛ ;(
+salary=$(echo "$gross_salary-$gross_salary*$tax" | bc);
+premium=$(echo "$gross_premium-$gross_premium*$tax" | bc);
+
+calculate_advance() {
+#возвращает размер аванса
+perday=$(echo "$salary / $(workdays $(date +%Y%m$(lastday $1) -d $1))" | bc);
+echo $perday;
+}
+
+calculate_salary() {
+#считает зарплату	
+echo ;
+}
+
+if [[ "$(date -d "$1" +%-d)" -gt $salary_day ]] && [[ "$(date -d "$1" +%-d)" -le $advance_day ]]; then
+	calculate_advance $1;
+else
+	echo 2; 
+	# calculate_advance $1;
+fi
